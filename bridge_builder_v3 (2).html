@@ -1,0 +1,1110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PhysX Bridge Builder — National PhysXHackathon 2026</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; background: #080c08; font-family: 'Courier New', monospace; overflow: hidden; }
+  #app { display: flex; height: 100vh; }
+  #sidebar {
+    width: 172px; min-width: 172px;
+    background: linear-gradient(180deg, #1a1f1a 0%, #0f140f 100%);
+    border-right: 1px solid #2a3a2a;
+    display: flex; flex-direction: column; padding: 12px 10px; gap: 6px;
+    color: #8faa8f; overflow-y: auto;
+  }
+  .logo { font-size: 10px; letter-spacing: 2px; color: #4a7a4a; text-align: center; padding-bottom: 8px; border-bottom: 1px solid #2a3a2a; margin-bottom: 4px; line-height: 1.6; }
+  .logo span { display: block; font-size: 13px; color: #7aaa7a; letter-spacing: 1px; }
+  .sb-title { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: #4a6a4a; padding: 4px 0; border-bottom: 1px solid #2a3a2a; margin-bottom: 2px; }
+  .mat-btn { padding: 7px 8px; border-radius: 6px; border: 1px solid #2a3a2a; background: #141a14; color: #8faa8f; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 7px; transition: all 0.15s; font-family: 'Courier New', monospace; text-align: left; width: 100%; }
+  .mat-btn:hover { background: #1e2a1e; border-color: #4a6a4a; color: #aaccaa; }
+  .mat-btn.active { background: #1e3a1e; border-color: #5a8a5a; color: #cceecc; box-shadow: inset 0 0 0 1px #3a6a3a; }
+  .mat-icon { width: 20px; height: 14px; border-radius: 2px; flex-shrink: 0; }
+  .steel-icon { background: repeating-linear-gradient(45deg,#607080,#607080 2px,#506070 2px,#506070 4px); }
+  .wood-icon  { background: repeating-linear-gradient(90deg,#8B5E3C,#8B5E3C 3px,#7A4E2C 3px,#7A4E2C 6px); }
+  .cable-icon { background: repeating-linear-gradient(45deg,#4a4a5a,#4a4a5a 1px,#888899 1px,#888899 2px); border-radius: 7px; }
+  .road-icon  { background: #3a3a3a; border-top: 2px solid #aaa; }
+  .sep { height: 1px; background: #2a3a2a; margin: 3px 0; }
+  .action-btn { padding: 7px 8px; border-radius: 6px; border: 1px solid #2a3a2a; background: #141a14; color: #8faa8f; font-size: 11px; cursor: pointer; transition: all 0.15s; font-family: 'Courier New', monospace; width: 100%; text-align: left; }
+  .action-btn:hover { background: #1e2a1e; color: #aaccaa; }
+  .action-btn.play  { border-color: #4a7a4a; color: #aaffaa; }
+  .action-btn.play:hover  { background: #1a3a1a; }
+  .action-btn.vehicle { border-color: #4a5a7a; color: #aaaaff; }
+  .action-btn.vehicle:hover { background: #1a1a3a; }
+  .action-btn.danger  { border-color: #7a4a4a; color: #ffaaaa; }
+  .action-btn.danger:hover  { background: #3a1a1a; }
+  #mode-indicator { font-size: 9px; color: #4a6a4a; text-align: center; padding: 5px; letter-spacing: 1px; border: 1px solid #2a3a2a; border-radius: 4px; background: #0e120e; }
+  #info-panel { font-size: 9px; color: #4a6a4a; line-height: 1.7; padding: 6px 2px; border-top: 1px solid #2a3a2a; padding-top: 8px; margin-top: auto; }
+  #info-panel b { color: #6a9a6a; font-weight: normal; }
+  #canvas-wrap { flex: 1; position: relative; overflow: hidden; }
+  #c { display: block; width: 100%; height: 100%; cursor: crosshair; }
+  #overlay { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.75); border: 1px solid #2a3a2a; border-radius: 6px; padding: 6px 12px; color: #5a8a5a; font-size: 9px; letter-spacing: 2px; pointer-events: none; }
+  #stress-wrap { position: absolute; bottom: 10px; left: 10px; right: 10px; }
+  #stress-label { font-size: 9px; color: #4a6a4a; letter-spacing: 1px; margin-bottom: 3px; }
+  #stress-bar { height: 4px; background: #1a2a1a; border-radius: 2px; }
+  #stress-fill { height: 100%; background: #3a8a3a; border-radius: 2px; transition: width 0.1s, background 0.1s; width: 0%; }
+  #peak-label { font-size: 9px; color: #4a6a4a; letter-spacing: 1px; margin-top: 3px; text-align: right; }
+  .env-select { background: #141a14; color: #8faa8f; border: 1px solid #2a3a2a; border-radius: 6px; padding: 6px 8px; font-family: 'Courier New', monospace; font-size: 10px; width: 100%; cursor: pointer; outline: none; }
+  .env-select:hover { border-color: #4a6a4a; }
+  .env-select option { background: #141a14; }
+
+  /* ── Report Modal ── */
+  #report-modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:9999; align-items:center; justify-content:center; }
+  #report-modal.show { display:flex; }
+  #report-box { background:#0a120a; border:1px solid #3a5a3a; border-radius:10px; width:min(700px,94vw); max-height:88vh; overflow-y:auto; padding:30px 34px; color:#8faa8f; position:relative; }
+  #report-box h2 { font-size:13px; color:#aaffaa; letter-spacing:3px; text-transform:uppercase; margin-bottom:20px; border-bottom:1px solid #2a3a2a; padding-bottom:12px; }
+  .rep-sec { margin-bottom:18px; }
+  .rep-sec h3 { font-size:9px; letter-spacing:2px; color:#5a9a5a; text-transform:uppercase; margin-bottom:8px; }
+  .rep-stat { display:flex; justify-content:space-between; font-size:11px; padding:4px 0; border-bottom:1px solid #121c12; }
+  .rep-stat span:last-child { color:#aaccaa; }
+  .rep-list { font-size:11px; line-height:1.9; color:#7a9a7a; padding-left:14px; }
+  .rep-list li { margin-bottom:2px; }
+  .verdict { font-size:12px; padding:11px 16px; border-radius:5px; margin-top:14px; letter-spacing:1px; }
+  .v-pass { background:#162816; border:1px solid #4a8a4a; color:#88ff88; }
+  .v-fail { background:#2a1212; border:1px solid #8a4a4a; color:#ff8888; }
+  #close-rep { position:absolute; top:14px; right:18px; background:none; border:1px solid #3a5a3a; color:#6a9a6a; font-family:'Courier New',monospace; font-size:11px; padding:4px 14px; border-radius:4px; cursor:pointer; }
+  #close-rep:hover { background:#1a2a1a; color:#aaccaa; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="sidebar">
+    <div class="logo"><span>&#8962; BRIDGE</span>PHYSX BUILDER<br>HACKATHON 2026</div>
+    <div class="sb-title">Materials</div>
+    <button class="mat-btn active" onclick="setMat('steel',this)"><div class="mat-icon steel-icon"></div>Steel Beam</button>
+    <button class="mat-btn" onclick="setMat('wood',this)"><div class="mat-icon wood-icon"></div>Wood Plank</button>
+    <button class="mat-btn" onclick="setMat('cable',this)"><div class="mat-icon cable-icon"></div>Cable</button>
+    <button class="mat-btn" onclick="setMat('road',this)"><div class="mat-icon road-icon"></div>Road Deck</button>
+    <div class="sep"></div>
+    <div class="sb-title">Environment</div>
+    <select class="env-select" id="envSelect" onchange="setEnvironment(this.value)">
+      <option value="sunny">&#9728; Sunny</option>
+      <option value="tsunami">&#127754; Tsunami</option>
+      <option value="earthquake">&#9889; Earthquake</option>
+      <option value="traffic">&#128663; Traffic Jam</option>
+    </select>
+    <div id="tsunami-level-wrap" style="display:none">
+      <div style="font-size:9px;color:#4a6a6a;letter-spacing:1px;margin:3px 0 2px;">TSUNAMI LEVEL</div>
+      <select class="env-select" id="tsunamiLevel" onchange="tsunamiLvl=+this.value">
+        <option value="1">Lv 1 — Ripple</option>
+        <option value="2">Lv 2 — Swell</option>
+        <option value="3" selected>Lv 3 — Surge</option>
+        <option value="4">Lv 4 — Torrent</option>
+        <option value="5">Lv 5 — MEGAWAVE</option>
+      </select>
+    </div>
+    <div id="quake-level-wrap" style="display:none">
+      <div style="font-size:9px;color:#6a4a3a;letter-spacing:1px;margin:3px 0 2px;">EARTHQUAKE LEVEL</div>
+      <select class="env-select" id="quakeLevel" onchange="quakeLvl=+this.value">
+        <option value="1">Lv 1 — Tremor</option>
+        <option value="2">Lv 2 — Minor</option>
+        <option value="3" selected>Lv 3 — Moderate</option>
+        <option value="4">Lv 4 — Major</option>
+        <option value="5">Lv 5 — CATASTROPHIC</option>
+      </select>
+    </div>
+    <div class="sep"></div>
+    <div class="sb-title">Actions</div>
+    <button class="action-btn play" id="playBtn" onclick="toggleSim()">&#9654; Simulate</button>
+    <button class="action-btn vehicle" onclick="spawnVehicle()">&#128663; Test Load</button>
+    <button class="action-btn danger" onclick="resetAll()">&#10227; Reset Bridge</button>
+    <div class="sep"></div>
+    <div id="mode-indicator">BUILD MODE</div>
+    <div id="info-panel">
+      <b>SIM:</b> Drag vehicles<br>
+      <b>BUILD:</b> Click joint&#8594;joint<br>
+      <b>Click</b> empty = new joint<br>
+      <b>Drag</b> joint = move it<br>
+      <b>Right-click</b> = delete<br>
+      <b>Green squares</b> = anchors
+    </div>
+  </div>
+  <div id="canvas-wrap">
+    <canvas id="c"></canvas>
+    <div id="overlay">PHYSX BRIDGE BUILDER</div>
+    <div id="stress-wrap">
+      <div id="stress-label">STRUCTURAL STRESS</div>
+      <div id="stress-bar"><div id="stress-fill"></div></div>
+      <div id="peak-label">PEAK: 0%</div>
+    </div>
+  </div>
+</div>
+
+<!-- Simulation Report Modal -->
+<div id="report-modal">
+  <div id="report-box">
+    <button id="close-rep" onclick="closeReport()">[CLOSE]</button>
+    <h2>&#128196; Simulation Analysis Report</h2>
+    <div id="report-content"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+<script>
+const { Engine, Runner, Bodies, Body, Constraint, World } = Matter;
+
+const cvs     = document.getElementById('c');
+const wrap    = document.getElementById('canvas-wrap');
+const sFill   = document.getElementById('stress-fill');
+const pLabel  = document.getElementById('peak-label');
+const modeInd = document.getElementById('mode-indicator');
+const playBtn = document.getElementById('playBtn');
+
+let W=0, H=0, waterBaseY=0;
+
+// Build state
+let simRunning=false, joints=[], beams=[], selectedMat='steel';
+let firstJoint=null, draggingJoint=null, mousePos={x:0,y:0};
+
+// Physics state
+let physBodies=[], physConstraints=[], roadPlanks=[];
+let vehicleBody=null, vehicles=[];
+let engineInst=null, runnerInst=null, animFrame=null;
+let simStartSnapshot={}, simTime=0;
+
+// Vehicle dragging (sim mode)
+let draggingVehicle=null, vehicleDragOff={x:0,y:0};
+
+// Environment
+let currentEnv='sunny', waterLevel=0;
+let tsunamiLvl=3, quakeLvl=3;
+let particles=[], honkBubbles=[], trafficTimer=0;
+
+// Platform geometry (set at sim start)
+let platformLeftX=0, platformRightX=0, platformY=0, platformW=0, platformH=20;
+let earthquakeShakeX=0, earthquakeShakeY=0;
+
+// Analytics
+let simStats={};
+
+// Collision categories
+// CAT_DEFAULT = bridge joints/structure
+// CAT_ROAD    = road planks & platforms (vehicles drive on these)
+// CAT_VEHICLE = vehicles (collide with road/platforms only, NOT bridge joints)
+const CAT_DEFAULT=0x0001, CAT_ROAD=0x0004, CAT_VEHICLE=0x0008;
+
+// Material config — realistic break thresholds (lower = snaps easier)
+const MAT={
+  steel:{ color:'#7a9aaa', thick:6,  stiffness:0.88, breakStrain:0.10 },
+  wood: { color:'#8B5E3C', thick:4,  stiffness:0.42, breakStrain:0.065},
+  cable:{ color:'#aaaacc', thick:2,  stiffness:0.20, breakStrain:0.13 },
+  road: { color:'#4a4a5a', thick:10, stiffness:0.82, breakStrain:0.075},
+};
+
+/* ══ UTILS ══ */
+let _seq=0;
+function uid(){ return (++_seq)+'_'+Date.now(); }
+
+function rrect(ctx,x,y,w,h,r){
+  r=Math.min(r,w/2,h/2); ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.arcTo(x+w,y,x+w,y+r,r);
+  ctx.lineTo(x+w,y+h-r); ctx.arcTo(x+w,y+h,x+w-r,y+h,r);
+  ctx.lineTo(x+r,y+h); ctx.arcTo(x,y+h,x,y+h-r,r);
+  ctx.lineTo(x,y+r); ctx.arcTo(x,y,x+r,y,r); ctx.closePath();
+}
+function shade(hex,d){
+  const n=parseInt(hex.slice(1),16);
+  return '#'+[((n>>16)&0xff)+d,((n>>8)&0xff)+d,(n&0xff)+d]
+    .map(v=>Math.max(0,Math.min(255,v)).toString(16).padStart(2,'0')).join('');
+}
+
+function resize(){
+  W=wrap.clientWidth; H=wrap.clientHeight;
+  cvs.width=W; cvs.height=H; waterBaseY=H*0.54;
+  if(W>0&&H>0&&!simRunning) drawAll();
+}
+window.addEventListener('resize',resize);
+function setEnvironment(e){
+  currentEnv=e;
+  document.getElementById('tsunami-level-wrap').style.display=(e==='tsunami')?'block':'none';
+  document.getElementById('quake-level-wrap').style.display=(e==='earthquake')?'block':'none';
+  if(!simRunning) drawAll();
+}
+
+/* ══ PARTICLES ══ */
+function spawnSplash(x,y,n,big){
+  for(let i=0;i<n;i++){
+    const a=-Math.PI*0.15-Math.random()*Math.PI*0.7;
+    const s=(big?3:1.5)+Math.random()*(big?6:4);
+    particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:1,decay:0.025+Math.random()*0.04,r:(big?3:2)+Math.random()*3});
+  }
+}
+function stepParticles(){
+  for(let i=particles.length-1;i>=0;i--){
+    const p=particles[i]; p.x+=p.vx; p.y+=p.vy; p.vy+=0.18; p.life-=p.decay;
+    if(p.life<=0) particles.splice(i,1);
+  }
+}
+function drawParticles(ctx){
+  particles.forEach(p=>{
+    ctx.save(); ctx.globalAlpha=p.life*0.9; ctx.fillStyle='#55aaee';
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.r*p.life,0,Math.PI*2); ctx.fill(); ctx.restore();
+  });
+}
+
+/* ══ BACKGROUND ══ */
+function drawBackground(ctx){
+  const wY=waterBaseY+waterLevel;
+
+  // Sky
+  const skg=ctx.createLinearGradient(0,0,0,H*0.56);
+  if(currentEnv==='sunny'){
+    skg.addColorStop(0,'#87CEEB'); skg.addColorStop(0.7,'#b8e0f0'); skg.addColorStop(1,'#cce8f4');
+  } else if(currentEnv==='tsunami'){
+    skg.addColorStop(0,'#030609'); skg.addColorStop(0.6,'#060c14'); skg.addColorStop(1,'#091020');
+  } else if(currentEnv==='earthquake'){
+    skg.addColorStop(0,'#160605'); skg.addColorStop(0.5,'#200a08'); skg.addColorStop(1,'#160605');
+  } else {
+    skg.addColorStop(0,'#5ba8d0'); skg.addColorStop(0.7,'#90cce8'); skg.addColorStop(1,'#a8d8ee');
+  }
+  ctx.fillStyle=skg; ctx.fillRect(0,0,W,H);
+
+  // Sun / Moon
+  if(currentEnv==='sunny'||currentEnv==='traffic'){
+    ctx.save(); ctx.shadowBlur=40; ctx.shadowColor='#ffffa0';
+    ctx.fillStyle='#ffe066'; ctx.beginPath();
+    ctx.arc(W*0.82,H*0.11,currentEnv==='traffic'?19:27,0,Math.PI*2); ctx.fill(); ctx.restore();
+  }
+  if(currentEnv==='tsunami'){
+    ctx.save(); ctx.shadowBlur=22; ctx.shadowColor='#8899cc';
+    ctx.fillStyle='rgba(170,185,220,0.55)'; ctx.beginPath();
+    ctx.arc(W*0.78,H*0.09,15,0,Math.PI*2); ctx.fill(); ctx.restore();
+    // Storm clouds
+    ctx.fillStyle='rgba(10,14,28,0.94)';
+    [[W*0.15,H*0.07,88,42],[W*0.44,H*0.04,108,46],[W*0.71,H*0.08,78,36],[W*0.3,H*0.11,68,30]].forEach(([cx,cy,rw,rh])=>{
+      ctx.beginPath(); ctx.ellipse(cx,cy,rw,rh,0,0,Math.PI*2); ctx.fill();
+    });
+    // Lightning
+    if(simRunning&&Math.random()<0.004){
+      const lx=W*0.2+Math.random()*W*0.6;
+      ctx.save(); ctx.globalAlpha=0.35+Math.random()*0.45; ctx.strokeStyle='#ddeeff'; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.moveTo(lx,0); ctx.lineTo(lx+18,H*0.14); ctx.lineTo(lx-10,H*0.22); ctx.lineTo(lx+14,H*0.37); ctx.stroke(); ctx.restore();
+    }
+  }
+  if(currentEnv==='earthquake'){
+    const t=simTime*0.012;
+    ctx.strokeStyle='rgba(255,55,10,0.13)'; ctx.lineWidth=1.5;
+    for(let i=0;i<5;i++){
+      const cx=W*0.1+i*W*0.2+Math.sin(t+i)*18;
+      ctx.beginPath(); ctx.moveTo(cx,H*0.22); ctx.lineTo(cx+Math.sin(t*1.5)*24,H*0.52); ctx.stroke();
+    }
+  }
+  // Stars (night)
+  if(currentEnv==='tsunami'||currentEnv==='earthquake'){
+    ctx.fillStyle='rgba(210,225,255,0.45)';
+    [[30,20],[80,50],[150,15],[220,35],[310,10],[400,28],[490,8],[550,40],[620,18],[670,55],[100,70],[280,60],[460,42],[350,25],[170,45]].forEach(([sx,sy])=>{
+      ctx.beginPath(); ctx.arc(sx*(W/680),sy*(H/620),1,0,Math.PI*2); ctx.fill();
+    });
+  }
+
+  // Ground
+  const gg=ctx.createLinearGradient(0,H*0.5,0,H);
+  gg.addColorStop(0,currentEnv==='earthquake'?'#1a0a00':'#182a10'); gg.addColorStop(1,'#060b04');
+  ctx.fillStyle=gg; ctx.fillRect(0,H*0.5,W,H);
+
+  // ── TSUNAMI: full-width water flood ──
+  if(currentEnv==='tsunami'&&simRunning){
+    const t=simTime*0.05;
+    // Level-based wave amplitude and visual intensity
+    const lvlAmp=[0,8,16,26,40,60][tsunamiLvl]||26;
+    const foamAlpha=[0,0.15,0.22,0.32,0.45,0.6][tsunamiLvl]||0.3;
+    // Solid water block
+    const wg=ctx.createLinearGradient(0,wY,0,H);
+    wg.addColorStop(0,'rgba(4,24,68,0.97)'); wg.addColorStop(0.4,'rgba(3,16,45,0.98)'); wg.addColorStop(1,'rgba(1,8,22,1)');
+    ctx.fillStyle=wg; ctx.fillRect(0,wY,W,H-wY);
+    // Animated wave layers
+    for(let layer=0;layer<5;layer++){
+      const amp=lvlAmp*0.5+layer*lvlAmp*0.2;
+      const freq=0.016-layer*0.003, spd=t*(1+layer*0.35);
+      ctx.beginPath(); ctx.moveTo(0,wY);
+      for(let px=0;px<=W;px+=5) ctx.lineTo(px, wY+Math.sin(px*freq+spd)*amp+Math.sin(px*0.028+spd*1.4)*4);
+      ctx.lineTo(W,H); ctx.lineTo(0,H); ctx.closePath();
+      const alpha=0.55-layer*0.07;
+      ctx.fillStyle=`rgba(${6+layer*4},${28+layer*12},${80+layer*18},${alpha})`;
+      ctx.fill();
+    }
+    // Foam whitecaps — more intense at higher levels
+    ctx.strokeStyle=`rgba(180,220,255,${foamAlpha})`; ctx.lineWidth=1.8+tsunamiLvl*0.4;
+    for(let i=0;i<8+tsunamiLvl*2;i++){
+      const wx=W*0.03+i*W*0.1, wy=wY+Math.sin(wx*0.022+t*1.2)*lvlAmp*0.4;
+      ctx.beginPath(); ctx.moveTo(wx-18,wy); ctx.bezierCurveTo(wx-6,wy-5,wx+6,wy-5,wx+18,wy); ctx.stroke();
+    }
+    // Underwater tint overlay when water is high
+  } else {
+    // Normal ravine water
+    const rv=waterBaseY;
+    const rwg=ctx.createLinearGradient(0,rv,0,H);
+    rwg.addColorStop(0,'#0a2a40'); rwg.addColorStop(1,'#051520');
+    ctx.fillStyle=rwg; ctx.fillRect(W*0.1,rv,W*0.8,H-rv);
+    ctx.strokeStyle='rgba(100,180,220,0.12)'; ctx.lineWidth=1;
+    for(let i=0;i<10;i++){
+      const wy=rv+i*20+10;
+      ctx.beginPath(); ctx.moveTo(W*0.12,wy); ctx.bezierCurveTo(W*0.35,wy-5,W*0.65,wy+5,W*0.88,wy); ctx.stroke();
+    }
+  }
+
+  // ── Landing Platforms ──
+  const pfY=H*0.52-18, pfH=24, pfW=W*0.1;
+  // Left platform
+  const lpg=ctx.createLinearGradient(0,pfY,0,pfY+pfH);
+  lpg.addColorStop(0,'#4a5a3a'); lpg.addColorStop(1,'#2a3a1a');
+  ctx.fillStyle=lpg; ctx.fillRect(0,pfY,pfW,pfH);
+  ctx.strokeStyle='#7a9a5a'; ctx.lineWidth=1.5;
+  ctx.strokeRect(0,pfY,pfW,pfH);
+  // Right platform
+  const rpg=ctx.createLinearGradient(0,pfY,0,pfY+pfH);
+  rpg.addColorStop(0,'#4a5a3a'); rpg.addColorStop(1,'#2a3a1a');
+  ctx.fillStyle=rpg; ctx.fillRect(W-pfW,pfY,pfW,pfH);
+  ctx.strokeStyle='#7a9a5a'; ctx.lineWidth=1.5;
+  ctx.strokeRect(W-pfW,pfY,pfW,pfH);
+  // Platform labels
+  ctx.font='bold 9px Courier New'; ctx.textAlign='center'; ctx.fillStyle='#aaccaa';
+  if(simRunning){
+    ctx.fillText('START',pfW/2,pfY-4);
+    ctx.fillText('FINISH',W-pfW/2,pfY-4);
+  }
+  const cc=currentEnv==='earthquake'?'#2a1606':'#182a10';
+  ctx.fillStyle=cc;
+  ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(W*0.1,0); ctx.lineTo(W*0.1,H*0.54);
+  ctx.bezierCurveTo(W*0.08,H*0.62,W*0.04,H*0.68,0,H*0.72); ctx.lineTo(0,H); ctx.closePath(); ctx.fill();
+  ctx.fillStyle=cc;
+  ctx.beginPath(); ctx.moveTo(W,0); ctx.lineTo(W*0.9,0); ctx.lineTo(W*0.9,H*0.54);
+  ctx.bezierCurveTo(W*0.92,H*0.62,W*0.96,H*0.68,W,H*0.72); ctx.lineTo(W,H); ctx.closePath(); ctx.fill();
+  const lsh=ctx.createLinearGradient(0,0,W*0.12,0); lsh.addColorStop(0,'rgba(0,0,0,0.5)'); lsh.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=lsh; ctx.fillRect(0,0,W*0.14,H);
+  const rsh=ctx.createLinearGradient(W,0,W*0.86,0); rsh.addColorStop(0,'rgba(0,0,0,0.5)'); rsh.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=rsh; ctx.fillRect(W*0.86,0,W*0.14,H);
+  ctx.fillStyle='rgba(255,255,255,0.04)';
+  [[W*0.04,H*0.30],[W*0.06,H*0.45],[W*0.03,H*0.52],[W*0.94,H*0.35],[W*0.96,H*0.50]].forEach(([rx,ry])=>{
+    ctx.beginPath(); ctx.arc(rx,ry,9,0,Math.PI*2); ctx.fill();
+  });
+}
+
+/* ══ BEAM DRAWING ══ */
+function stressCol(s,base){
+  if(s>0.75) return `rgba(255,${Math.floor((1-s)*50)},0,0.97)`;
+  if(s>0.42) return `rgba(255,${Math.floor(130*(1-s)+30)},0,0.85)`;
+  return base;
+}
+function drawBeam(ctx,b){
+  const {ja,jb,mat,stress}=b; if(!ja||!jb) return;
+  const sx=ja.x,sy=ja.y,ex=jb.x,ey=jb.y;
+  const len=Math.hypot(ex-sx,ey-sy); if(len<1) return;
+  const m=MAT[mat], col=stressCol(stress||0,m.color);
+  ctx.save(); ctx.translate(sx,sy); ctx.rotate(Math.atan2(ey-sy,ex-sx));
+  if(mat==='cable'){
+    ctx.strokeStyle=col; ctx.lineWidth=2; ctx.setLineDash([5,3]);
+    ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(len,0); ctx.stroke(); ctx.setLineDash([]);
+    ctx.strokeStyle='rgba(180,180,220,0.2)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(2,1); ctx.lineTo(len-2,1); ctx.stroke();
+  } else if(mat==='steel'){
+    ctx.fillStyle=col; ctx.fillRect(0,-m.thick/2,len,m.thick);
+    ctx.fillStyle='rgba(0,0,0,0.45)';
+    [8,len/2,len-8].forEach(bx=>{ctx.beginPath();ctx.arc(bx,0,2.5,0,Math.PI*2);ctx.fill();});
+    const sg=ctx.createLinearGradient(0,-m.thick/2,0,m.thick/2);
+    sg.addColorStop(0,'rgba(255,255,255,0.18)'); sg.addColorStop(0.4,'rgba(255,255,255,0.04)'); sg.addColorStop(1,'rgba(0,0,0,0.25)');
+    ctx.fillStyle=sg; ctx.fillRect(0,-m.thick/2,len,m.thick);
+  } else if(mat==='wood'){
+    ctx.fillStyle=col; ctx.fillRect(0,-m.thick/2,len,m.thick);
+    ctx.strokeStyle='rgba(0,0,0,0.28)'; ctx.lineWidth=0.5;
+    for(let gx=10;gx<len;gx+=14){ctx.beginPath();ctx.moveTo(gx,-m.thick/2);ctx.lineTo(gx+3,m.thick/2);ctx.stroke();}
+    const wg2=ctx.createLinearGradient(0,-m.thick/2,0,m.thick/2);
+    wg2.addColorStop(0,'rgba(255,255,255,0.12)'); wg2.addColorStop(1,'rgba(0,0,0,0.22)');
+    ctx.fillStyle=wg2; ctx.fillRect(0,-m.thick/2,len,m.thick);
+  } else {
+    ctx.fillStyle=col; ctx.fillRect(0,-m.thick/2,len,m.thick);
+    ctx.fillStyle='rgba(150,150,150,0.4)'; ctx.fillRect(0,-m.thick/2,len,3);
+    ctx.strokeStyle='rgba(255,220,0,0.3)'; ctx.lineWidth=1; ctx.setLineDash([10,8]);
+    ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(len,0); ctx.stroke(); ctx.setLineDash([]);
+  }
+  ctx.restore();
+}
+
+function drawJoint(ctx,j){
+  ctx.save();
+  if(j.fixed){
+    ctx.fillStyle='#354535'; ctx.strokeStyle='#5a8a5a'; ctx.lineWidth=1.5;
+    ctx.fillRect(j.x-9,j.y-9,18,18); ctx.strokeRect(j.x-9,j.y-9,18,18);
+    ctx.fillStyle='#7aaa7a'; ctx.beginPath(); ctx.arc(j.x,j.y,3.5,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='rgba(0,0,0,0.4)'; ctx.beginPath(); ctx.arc(j.x,j.y,1.5,0,Math.PI*2); ctx.fill();
+  } else {
+    const sel=j===firstJoint, drag=j===draggingJoint;
+    ctx.fillStyle=sel?'#bbffbb':drag?'#ffff99':'#5a8a5a';
+    ctx.strokeStyle=sel?'#88ff88':'#2a5a2a'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.arc(j.x,j.y,sel?7:5,0,Math.PI*2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle='rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.arc(j.x+1,j.y+1,sel?3:2,0,Math.PI*2); ctx.fill();
+  }
+  ctx.restore();
+}
+
+const CAR_COLORS=['#cc4444','#4466cc','#44aa55','#cc8833','#9944cc','#cc4488','#44aacc','#aacc44'];
+function drawVehicle(ctx,vb,idx){
+  if(!vb) return;
+  const {x,y}=vb.position, ang=vb.angle;
+  const col=CAR_COLORS[idx%CAR_COLORS.length], col2=shade(col,-35);
+  if(vb===draggingVehicle){
+    ctx.save(); ctx.translate(x,y); ctx.rotate(ang);
+    ctx.strokeStyle='#ffffaa'; ctx.lineWidth=2.5;
+    rrect(ctx,-24,-24,48,24,4); ctx.stroke(); ctx.restore();
+  }
+  ctx.save(); ctx.translate(x,y); ctx.rotate(ang);
+  ctx.fillStyle=col; rrect(ctx,-20,-11,40,15,3); ctx.fill();
+  ctx.fillStyle=col2; rrect(ctx,-12,-21,26,12,2); ctx.fill();
+  ctx.fillStyle='rgba(120,210,255,0.65)';
+  rrect(ctx,-9,-19,9,7,1); ctx.fill(); rrect(ctx,2,-19,9,7,1); ctx.fill();
+  [-12,12].forEach(wx=>{
+    ctx.fillStyle='#1a1a1a'; ctx.beginPath(); ctx.arc(wx,6,7,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#444';    ctx.beginPath(); ctx.arc(wx,6,4,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#888';    ctx.beginPath(); ctx.arc(wx,6,2,0,Math.PI*2); ctx.fill();
+  });
+  ctx.fillStyle='rgba(255,240,100,0.88)';
+  ctx.beginPath(); ctx.arc(20,0,3,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+
+function drawAll(){
+  if(!W||!H) return;
+  const ctx=cvs.getContext('2d'); ctx.clearRect(0,0,W,H);
+  if(simRunning&&currentEnv==='earthquake'){ ctx.save(); ctx.translate(earthquakeShakeX,earthquakeShakeY); }
+  drawBackground(ctx);
+  beams.forEach(b=>drawBeam(ctx,b));
+  joints.forEach(j=>drawJoint(ctx,j));
+  if(firstJoint&&!simRunning){
+    ctx.strokeStyle='rgba(140,220,140,0.35)'; ctx.lineWidth=1; ctx.setLineDash([5,4]);
+    ctx.beginPath(); ctx.moveTo(firstJoint.x,firstJoint.y); ctx.lineTo(mousePos.x,mousePos.y); ctx.stroke(); ctx.setLineDash([]);
+  }
+  if(simRunning){
+    if(vehicleBody) drawVehicle(ctx,vehicleBody,0);
+    vehicles.forEach((v,i)=>drawVehicle(ctx,v,i+1));
+  }
+  drawParticles(ctx);
+  // HONK bubbles
+  ctx.font='bold 11px Courier New';
+  for(let i=honkBubbles.length-1;i>=0;i--){
+    const h=honkBubbles[i]; h.timer--;
+    if(h.timer<=0){honkBubbles.splice(i,1);continue;}
+    ctx.save(); ctx.globalAlpha=Math.min(1,h.timer/20);
+    ctx.fillStyle='#ffffaa'; ctx.strokeStyle='#888800'; ctx.lineWidth=1;
+    rrect(ctx,h.x-24,h.y-20,48,18,4); ctx.fill(); ctx.stroke();
+    ctx.fillStyle='#333300'; ctx.textAlign='center'; ctx.fillText('HONK!',h.x,h.y-6);
+    ctx.restore();
+  }
+  if(simRunning&&currentEnv==='earthquake') ctx.restore();
+  if(simRunning&&(vehicleBody||vehicles.length>0)){
+    ctx.save(); ctx.font='9px Courier New'; ctx.fillStyle='rgba(100,160,100,0.55)'; ctx.textAlign='right';
+    ctx.fillText('DRAG VEHICLES TO REPOSITION',W-12,H-22); ctx.restore();
+  }
+  updateStressUI();
+}
+
+function updateStressUI(){
+  let maxS=0; beams.forEach(b=>{if((b.stress||0)>maxS) maxS=b.stress;});
+  if(maxS>simStats.peakStress) simStats.peakStress=maxS;
+  const pct=Math.min(maxS*100,100);
+  sFill.style.width=pct.toFixed(1)+'%';
+  sFill.style.background=pct>80?'#cc3333':pct>50?'#cc8833':'#3a8a3a';
+  pLabel.textContent='PEAK: '+pct.toFixed(0)+'%';
+}
+
+/* ══ SCENE HELPERS ══ */
+function addJoint(x,y,fixed){ const j={x,y,fixed:!!fixed,id:uid()}; joints.push(j); return j; }
+function addBeam(ja,jb,mat){ const b={ja,jb,mat,id:uid(),stress:0}; beams.push(b); return b; }
+function findNear(x,y,r){ let best=null,bd=r; joints.forEach(j=>{const d=Math.hypot(j.x-x,j.y-y);if(d<bd){bd=d;best=j;}}); return best; }
+
+function buildDefault(){
+  const gY=H*0.52, lx=W*0.1, rx=W*0.9;
+  const aL1=addJoint(lx,gY-18,true), aL2=addJoint(lx,gY-100,true);
+  const aR1=addJoint(rx,gY-18,true), aR2=addJoint(rx,gY-100,true);
+  const n=6, dx=(rx-lx)/n, dY=gY-28, tY=gY-108;
+  let bot=[aL1], top=[aL2];
+  for(let i=1;i<n;i++){bot.push(addJoint(lx+i*dx,dY));top.push(addJoint(lx+i*dx,tY));}
+  bot.push(aR1); top.push(aR2);
+  for(let i=0;i<n;i++){
+    addBeam(bot[i],bot[i+1],'road');
+    addBeam(top[i],top[i+1],'steel');
+    // Only add vertical end bars on interior joints (i>0 and i<n-1 for the vertical, skip i=0 left end and i=n right end)
+    // Left end (i=0): NO vertical beam — open for vehicles to enter
+    // Right end (i=n): NO vertical beam — open for vehicles to exit
+    if(i>0) addBeam(bot[i],top[i],'steel');      // interior verticals only
+    addBeam(bot[i+1],top[i],'steel');             // diagonals kept
+  }
+  // NO addBeam(bot[n],top[n]) — right end stays open
+  for(let i=1;i<n;i+=2) addBeam(top[i],bot[i],'cable');
+}
+
+/* ══ VEHICLE HELPERS ══ */
+function getRoadLeftY(){
+  const rj=beams.filter(b=>b.mat==='road').flatMap(b=>[b.ja,b.jb]).filter(j=>j.x<W*0.22);
+  return rj.length ? rj.reduce((s,j)=>s+j.y,0)/rj.length : H*0.52-30;
+}
+function makeVehicle(x,y){
+  const vb=Bodies.rectangle(x,y-16,40,20,{
+    frictionAir:0.016, restitution:0.04, density:0.0045,
+    friction:0.9, frictionStatic:0.8,
+    // CAT_VEHICLE only collides with CAT_ROAD (road planks + platforms)
+    // It does NOT collide with CAT_DEFAULT (bridge joint physics bodies)
+    // This makes the car independent of bridge structure — only road surface matters
+    collisionFilter:{category:CAT_VEHICLE, mask:CAT_ROAD}
+  });
+  return vb;
+}
+
+/* ══ SIMULATION ══ */
+function startSim(){
+  simRunning=true; firstJoint=null; simTime=0; waterLevel=0;
+  particles=[]; honkBubbles=[]; roadPlanks=[]; trafficTimer=0;
+  earthquakeShakeX=0; earthquakeShakeY=0; draggingVehicle=null;
+
+  simStats={ startBeams:beams.length, snappedBeams:[], peakStress:0,
+    vehiclesCrossed:0, vehiclesFallen:0, environment:currentEnv,
+    tsunamiLevel: currentEnv==='tsunami'?tsunamiLvl:0,
+    earthquakeLevel: currentEnv==='earthquake'?quakeLvl:0,
+    duration:0, tsunamiSubmerged:false, earthquakeDamage:false };
+
+  simStartSnapshot={};
+  joints.forEach(j=>{simStartSnapshot[j.id]={x:j.x,y:j.y};});
+
+  engineInst=Engine.create({gravity:{y:1.5}});
+  const w=engineInst.world;
+  physBodies=[]; physConstraints=[]; vehicleBody=null; vehicles=[];
+
+  const gY=H*0.52, wW=W*0.1;
+  platformLeftX=0; platformRightX=W-wW;
+  platformY=gY-18; platformW=wW; platformH=24;
+
+  // Ground floor — catches everything including vehicles
+  const groundFloor = Bodies.rectangle(W/2,H+25,W*4,50,{isStatic:true,
+    collisionFilter:{category:CAT_ROAD, mask:CAT_DEFAULT|CAT_VEHICLE}});
+  // Left platform — wide solid surface, flush with bridge start
+  const leftPlat = Bodies.rectangle(wW/2, platformY+platformH/2, wW+4, platformH,{
+    isStatic:true, friction:1.0, frictionStatic:1.0, restitution:0.0,
+    collisionFilter:{category:CAT_ROAD, mask:CAT_DEFAULT|CAT_VEHICLE}
+  });
+  // Right platform
+  const rightPlat = Bodies.rectangle(W-wW/2, platformY+platformH/2, wW+4, platformH,{
+    isStatic:true, friction:1.0, frictionStatic:1.0, restitution:0.0,
+    collisionFilter:{category:CAT_ROAD, mask:CAT_DEFAULT|CAT_VEHICLE}
+  });
+  // Left cliff wall (to stop vehicles falling off left side)
+  const leftWall = Bodies.rectangle(-10, gY, 20, H, {isStatic:true});
+  World.add(w,[groundFloor, leftPlat, rightPlat, leftWall,
+    Bodies.rectangle(wW/2,gY,wW,H*0.65,{isStatic:true}),
+    Bodies.rectangle(W-wW/2,gY,wW,H*0.65,{isStatic:true}),
+  ]);
+
+  const jMap={};
+  joints.forEach(j=>{
+    const b=Bodies.circle(j.x,j.y,4,{
+      isStatic:j.fixed, frictionAir:0.04, restitution:0.08, friction:0.3,
+      collisionFilter:{category:CAT_DEFAULT,mask:CAT_DEFAULT}
+    });
+    World.add(w,b); jMap[j.id]=b; physBodies.push({joint:j,body:b});
+  });
+
+  beams.forEach(b=>{
+    const bA=jMap[b.ja.id], bB=jMap[b.jb.id]; if(!bA||!bB) return;
+    const rl=Math.hypot(b.ja.x-b.jb.x,b.ja.y-b.jb.y);
+    const c=Constraint.create({
+      bodyA:bA,bodyB:bB,length:rl,
+      stiffness:MAT[b.mat].stiffness, damping:0.05, render:{visible:false}
+    });
+    World.add(w,c);
+    physConstraints.push({beam:b,constraint:c,restLen:rl});
+
+    // Road segments: tracked for surface interpolation only (no individual plank bodies)
+    if(b.mat==='road'){
+      roadPlanks.push({beam:b,body:null,bodyA:bA,bodyB:bB});
+    }
+  });
+
+  runnerInst=Runner.create(); Runner.run(runnerInst,engineInst);
+
+  // Auto-spawn first vehicle on left platform
+  const ry0=platformY-12;
+  vehicleBody=makeVehicle(W*0.06, ry0);
+  Body.setVelocity(vehicleBody,{x:3,y:0});
+  World.add(w,vehicleBody);
+
+  const splashed=new Set();
+
+  function loop(){
+    if(!simRunning) return;
+    simTime++; simStats.duration=simTime;
+    const wY=waterBaseY+waterLevel;
+
+    // Sync joints
+    physBodies.forEach(pb=>{
+      if(!pb.body.isStatic){
+        pb.joint.x=pb.body.position.x; pb.joint.y=pb.body.position.y;
+        const bid=pb.joint.id;
+        if(pb.body.position.y>=wY&&!splashed.has(bid)){
+          splashed.add(bid); spawnSplash(pb.body.position.x,wY,7,false);
+        }
+      }
+    });
+
+    // ── Smooth road surface: interpolate vehicle Y along road joints ──
+    // Build sorted list of road joint X/Y positions this frame
+    const roadNodes=[];
+    roadPlanks.forEach(rp=>{
+      const pA=rp.bodyA.position, pB=rp.bodyB.position;
+      roadNodes.push({x:pA.x,y:pA.y});
+      roadNodes.push({x:pB.x,y:pB.y});
+    });
+    // Deduplicate by X (keep lowest Y per X bucket)
+    const nodeMap={};
+    roadNodes.forEach(n=>{
+      const k=Math.round(n.x);
+      if(nodeMap[k]===undefined||n.y<nodeMap[k]) nodeMap[k]=n.y;
+    });
+    const sortedNodes=Object.entries(nodeMap)
+      .map(([x,y])=>({x:+x,y}))
+      .sort((a,b)=>a.x-b.x);
+
+    function getRoadYatX(vx){
+      if(sortedNodes.length<2) return null;
+      // Off left/right of road
+      if(vx<sortedNodes[0].x-2||vx>sortedNodes[sortedNodes.length-1].x+2) return null;
+      for(let i=0;i<sortedNodes.length-1;i++){
+        const a=sortedNodes[i], b=sortedNodes[i+1];
+        if(vx>=a.x&&vx<=b.x){
+          const t=(vx-a.x)/(b.x-a.x);
+          return a.y+t*(b.y-a.y);
+        }
+      }
+      return null;
+    }
+
+    // Snap each vehicle to road surface if it's close enough (within 28px above surface)
+    const allVehSnap=vehicleBody?[vehicleBody,...vehicles]:[...vehicles];
+    allVehSnap.forEach(vb=>{
+      if(vb===draggingVehicle) return;
+      const roadY=getRoadYatX(vb.position.x);
+      if(roadY===null) return; // no road at this X — vehicle falls freely under gravity
+      const targetY=roadY-10; // vehicle center should sit 10px above road surface
+      const gap=vb.position.y-targetY;
+      // Only snap if vehicle is within 30px of the surface (not far above/below)
+      if(gap>-30&&gap<20){
+        Body.setPosition(vb,{x:vb.position.x, y:targetY});
+        // Kill downward velocity so no bounce, keep horizontal speed
+        if(vb.velocity.y>0.5) Body.setVelocity(vb,{x:vb.velocity.x,y:0});
+        // Tilt the car sprite to match road slope at this point
+        const dx=4;
+        const yL=getRoadYatX(vb.position.x-dx), yR=getRoadYatX(vb.position.x+dx);
+        if(yL!==null&&yR!==null){
+          const slope=Math.atan2(yR-yL,dx*2);
+          Body.setAngle(vb,slope);
+          Body.setAngularVelocity(vb,0);
+        } else {
+          Body.setAngle(vb,0); Body.setAngularVelocity(vb,0);
+        }
+      }
+    });
+
+    // ── Structural failure check ──
+    for(let i=physConstraints.length-1;i>=0;i--){
+      const pc=physConstraints[i];
+      const pA=pc.constraint.bodyA.position, pB=pc.constraint.bodyB.position;
+      const cur=Math.hypot(pA.x-pB.x,pA.y-pB.y);
+      const strain=Math.abs(cur-pc.restLen)/Math.max(pc.restLen,1);
+      pc.beam.stress=Math.min(strain/MAT[pc.beam.mat].breakStrain, 1);
+
+      if(pc.beam.stress>=1.0){
+        // Determine failure reason
+        let reason='Structural overload — insufficient support triangulation';
+        const midX=(pA.x+pB.x)/2, midY=(pA.y+pB.y)/2;
+        if(currentEnv==='tsunami'&&pA.y>wY-10) reason='Submerged by tsunami flood surge';
+        else if(currentEnv==='earthquake'){ reason='Seismic resonance — beam vibrated to failure'; simStats.earthquakeDamage=true; }
+        else {
+          const allV=vehicleBody?[vehicleBody,...vehicles]:[...vehicles];
+          const nearVeh=allV.some(vb=>Math.hypot(vb.position.x-midX,vb.position.y-midY)<130);
+          if(nearVeh) reason='Vehicle load exceeded beam capacity';
+        }
+        simStats.snappedBeams.push({mat:pc.beam.mat,reason,time:simTime,x:midX,y:midY});
+
+        World.remove(engineInst.world,pc.constraint);
+        physConstraints.splice(i,1);
+        const rpi=roadPlanks.findIndex(rp=>rp.beam===pc.beam);
+        if(rpi!==-1){ roadPlanks.splice(rpi,1); } // no body to World.remove
+        const bi=beams.indexOf(pc.beam); if(bi!==-1) beams.splice(bi,1);
+        if(midY>wY-60) spawnSplash(midX,wY,9,false);
+      }
+    }
+
+    // ── Environment effects ──
+
+    // TSUNAMI: aggressively flood everything
+    if(currentEnv==='tsunami'){
+      // Level-based rise speed: lv1=0.3, lv2=0.6, lv3=1.3, lv4=2.5, lv5=4.5
+      const riseSpeed=[0,0.3,0.6,1.3,2.5,4.5][tsunamiLvl]||1.3;
+      // Max rise: at lv5 water goes FAR above the bridge (H*0.85 means only sky visible)
+      const maxRise=[0,H*0.35,H*0.55,H*0.78,H*0.88,H*0.96][tsunamiLvl]||H*0.78;
+      if(waterLevel<maxRise) waterLevel+=riseSpeed;
+      if(waterLevel>H*0.25) simStats.tsunamiSubmerged=true;
+      const t=simTime*0.04;
+      // Wave force scales with level
+      const waveForceMult=[0,0.3,0.6,1.0,1.8,3.2][tsunamiLvl]||1.0;
+      physBodies.forEach(pb=>{
+        if(!pb.body.isStatic){
+          const depth=Math.max(0,pb.body.position.y-wY+30);
+          Body.applyForce(pb.body,pb.body.position,{
+            x:(0.0007+Math.sin(t+pb.body.position.x*0.012)*0.0005)*waveForceMult,
+            y:(-0.003-depth*0.00005)*waveForceMult
+          });
+        }
+      });
+      // At high levels, submerged beams corrode faster (lower effective breakStrain)
+      if(tsunamiLvl>=3){
+        physConstraints.forEach(pc=>{
+          const midY=(pc.constraint.bodyA.position.y+pc.constraint.bodyB.position.y)/2;
+          if(midY>wY-5){
+            // Corrosion factor: deeper = weaker. Boost stress reading visually.
+            const corrosion=0.15+(tsunamiLvl-3)*0.12;
+            pc.beam.stress=Math.min(1,(pc.beam.stress||0)+corrosion*0.008);
+          }
+        });
+      }
+    }
+
+    // EARTHQUAKE — level-based shaking
+    if(currentEnv==='earthquake'){
+      const shakeAmp=[0,3,6,14,24,40][quakeLvl]||14;
+      const forceAmp=[0,0.002,0.005,0.01,0.022,0.042][quakeLvl]||0.01;
+      const spawnChance=[0,0.06,0.12,0.22,0.35,0.55][quakeLvl]||0.22;
+      earthquakeShakeX=(Math.random()-0.5)*shakeAmp;
+      earthquakeShakeY=(Math.random()-0.5)*shakeAmp*0.55;
+      physBodies.forEach(pb=>{
+        if(!pb.body.isStatic&&Math.random()<spawnChance){
+          Body.applyForce(pb.body,pb.body.position,{
+            x:(Math.random()-0.5)*forceAmp,
+            y:(Math.random()-0.5)*forceAmp*0.4
+          });
+        }
+      });
+    } else { earthquakeShakeX=0; earthquakeShakeY=0; }
+
+    // TRAFFIC: spawn vehicles every 3 seconds
+    if(currentEnv==='traffic'){
+      trafficTimer++;
+      if(trafficTimer>=60){
+        trafficTimer=0;
+        const all=vehicleBody?[vehicleBody,...vehicles]:[...vehicles];
+        if(all.length<15){
+          const ry2=platformY?platformY-12:getRoadLeftY();
+          const nv=makeVehicle(W*0.06,ry2);
+          Body.setVelocity(nv,{x:2.5+Math.random()*1.5,y:0});
+          World.add(engineInst.world,nv); vehicles.push(nv);
+        }
+      }
+      const all2=vehicleBody?[vehicleBody,...vehicles]:[...vehicles];
+      if(all2.length>0&&Math.random()<0.007){
+        const rv=all2[Math.floor(Math.random()*all2.length)];
+        honkBubbles.push({x:rv.position.x,y:rv.position.y-32,timer:65});
+      }
+    }
+
+    // ── Engine force: drive all vehicles rightward autonomously ──
+    const allVeh=vehicleBody?[vehicleBody,...vehicles]:[...vehicles];
+    allVeh.forEach(vb=>{
+      if(vb===draggingVehicle) return;
+      const onSurface=vb.position.y<H*0.62;
+      const notPastEnd=vb.position.x<W*0.95;
+      if(onSurface&&notPastEnd&&vb.velocity.x<5.5){
+        Body.applyForce(vb,vb.position,{x:0.0014*vb.mass,y:0});
+      }
+      // Keep vehicle from bouncing: small downward force when on bridge
+      if(onSurface&&vb.velocity.y<-1){
+        Body.applyForce(vb,vb.position,{x:0,y:0.0004*vb.mass});
+      }
+    });
+
+    // ── Vehicle tracking ──
+    allVeh.forEach(vb=>{
+      const vid=vb.id;
+      // Splash when hitting water
+      if(vb.position.y>wY&&!splashed.has(vid+'_sp')){
+        splashed.add(vid+'_sp'); spawnSplash(vb.position.x,wY,20,true);
+      }
+      // Crossed successfully: reached right platform and still at surface level
+      if(vb.position.x>W-platformW-5&&vb.position.y<platformY+platformH+20&&!splashed.has(vid+'_cx')){
+        splashed.add(vid+'_cx'); simStats.vehiclesCrossed++;
+        // Spawn a small celebration splash
+        spawnSplash(vb.position.x, vb.position.y-10, 6, false);
+      }
+      // Lost: fallen into sea (y > waterline) or off screen
+      const inWater=vb.position.y>wY+30;
+      const offScreen=vb.position.y>H+80;
+      if((inWater||offScreen)&&!splashed.has(vid+'_fl')){
+        splashed.add(vid+'_fl'); simStats.vehiclesFallen++;
+      }
+      if(offScreen){
+        World.remove(engineInst.world,vb);
+        if(vb===vehicleBody) vehicleBody=null;
+        else{const vi=vehicles.indexOf(vb);if(vi!==-1) vehicles.splice(vi,1);}
+      }
+    });
+
+    stepParticles(); drawAll();
+    animFrame=requestAnimationFrame(loop);
+  }
+  loop();
+}
+
+function stopSim(){
+  const was=simRunning;
+  simRunning=false;
+  if(animFrame){cancelAnimationFrame(animFrame);animFrame=null;}
+  if(runnerInst){Runner.stop(runnerInst);runnerInst=null;}
+  vehicleBody=null; vehicles=[]; physBodies=[]; physConstraints=[]; roadPlanks=[];
+  particles=[]; honkBubbles=[]; draggingVehicle=null;
+  waterLevel=0; earthquakeShakeX=0; earthquakeShakeY=0;
+  joints.forEach(j=>{const s=simStartSnapshot[j.id];if(s){j.x=s.x;j.y=s.y;}});
+  beams.forEach(b=>b.stress=0);
+  drawAll();
+  if(was) showReport();
+}
+
+function toggleSim(){
+  if(simRunning){
+    stopSim();
+    playBtn.textContent='\u25B6 Simulate';
+    modeInd.textContent='BUILD MODE';
+  } else {
+    startSim();
+    playBtn.textContent='\u23F9 Stop + Report';
+    modeInd.textContent='SIM MODE';
+  }
+}
+
+function spawnVehicle(){
+  if(!simRunning){toggleSim();setTimeout(spawnVehicle,500);return;}
+  if(vehicleBody&&engineInst){World.remove(engineInst.world,vehicleBody);vehicleBody=null;}
+  const ry=platformY?platformY-12:getRoadLeftY();
+  vehicleBody=makeVehicle(W*0.06,ry);
+  Body.setVelocity(vehicleBody,{x:3,y:0});
+  if(engineInst) World.add(engineInst.world,vehicleBody);
+}
+
+function resetAll(){
+  if(simRunning){
+    simRunning=false;
+    if(animFrame){cancelAnimationFrame(animFrame);animFrame=null;}
+    if(runnerInst){Runner.stop(runnerInst);runnerInst=null;}
+  }
+  engineInst=null; runnerInst=null;
+  joints=[]; beams=[]; firstJoint=null; vehicleBody=null; vehicles=[];
+  simStartSnapshot={}; physBodies=[]; physConstraints=[]; roadPlanks=[];
+  particles=[]; honkBubbles=[]; draggingVehicle=null;
+  waterLevel=0; earthquakeShakeX=0; earthquakeShakeY=0;
+  currentEnv='sunny'; document.getElementById('envSelect').value='sunny';
+  playBtn.textContent='\u25B6 Simulate'; modeInd.textContent='BUILD MODE';
+  simStats={peakStress:0}; buildDefault(); drawAll();
+}
+
+function setMat(mat,btn){
+  selectedMat=mat;
+  document.querySelectorAll('.mat-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+/* ══ REPORT ══ */
+function showReport(){
+  const s=simStats;
+  const broken=s.snappedBeams.length;
+  const survived=Math.max(0,s.startBeams-broken);
+  const intPct=s.startBeams>0?Math.round((survived/s.startBeams)*100):100;
+  const sec=(s.duration/60).toFixed(1);
+  const peakPct=Math.round(s.peakStress*100);
+  const passed=broken===0&&s.vehiclesFallen===0;
+
+  // Cause tally
+  const byReason={};
+  s.snappedBeams.forEach(b=>{byReason[b.reason]=(byReason[b.reason]||0)+1;});
+  const causeLines=Object.entries(byReason).map(([r,c])=>`<li><b>${c}x</b> — ${r}</li>`);
+  if(!causeLines.length) causeLines.push('<li>No structural failures detected</li>');
+
+  // Material breakdown
+  const mc={steel:0,wood:0,cable:0,road:0};
+  s.snappedBeams.forEach(b=>mc[b.mat]=(mc[b.mat]||0)+1);
+
+  // First failure time
+  const firstFail=s.snappedBeams.length>0 ? (s.snappedBeams[0].time/60).toFixed(1)+'s' : '—';
+
+  // Engineering recommendations
+  const recs=[];
+  if(mc.road>0)  recs.push('Road deck tore — add diagonal steel bracing under the deck to spread load');
+  if(mc.steel>0) recs.push('Steel beams snapped — span too long or point-loaded; add intermediate towers or cross-bracing');
+  if(mc.cable>0) recs.push('Cables failed — cables only work in tension; ensure they are taut, not compressed');
+  if(mc.wood>0)  recs.push('Wood planks broke — wood is weakest material; replace critical members with steel');
+  if(s.vehiclesFallen>0&&broken===0) recs.push('Vehicles fell off despite intact bridge — check road deck continuity at approach ends');
+  if(s.tsunamiSubmerged&&broken>0)  recs.push('Flood forces overwhelmed the structure — add mass and redundancy; use cable-stayed design');
+  if(s.earthquakeDamage)             recs.push('Seismic damage occurred — triangulated trusses (X-bracing) are most earthquake-resistant');
+  if(s.vehiclesCrossed>0&&broken===0) recs.push('Excellent design — load was well distributed across all members');
+  if(!recs.length) recs.push('All structural members held. Consider testing under harsher environment conditions.');
+
+  const tsunamiLabels=['','Lv1-Ripple','Lv2-Swell','Lv3-Surge','Lv4-Torrent','Lv5-MEGAWAVE'];
+  const quakeLabels=['','Lv1-Tremor','Lv2-Minor','Lv3-Moderate','Lv4-Major','Lv5-CATASTROPHIC'];
+  const envLabel={
+    sunny:'Sunny / Standard load',
+    tsunami:`Tsunami — ${tsunamiLabels[s.tsunamiLevel]||'Rising flood surge'}`,
+    earthquake:`Earthquake — ${quakeLabels[s.earthquakeLevel]||'Seismic shaking'}`,
+    traffic:'Traffic Jam — Multiple vehicles'
+  };
+
+  // Timeline of failures
+  let timelineHTML='';
+  if(s.snappedBeams.length>0){
+    timelineHTML='<div class="rep-sec"><h3>&#9203; Failure Timeline</h3>';
+    s.snappedBeams.slice(0,10).forEach((b,i)=>{
+      const t=(b.time/60).toFixed(1);
+      timelineHTML+=`<div class="rep-stat"><span>${String(i+1).padStart(2,'0')}. T+${t}s — ${b.mat.toUpperCase()}</span><span style="font-size:10px;max-width:55%;text-align:right;">${b.reason}</span></div>`;
+    });
+    if(s.snappedBeams.length>10) timelineHTML+=`<div class="rep-stat"><span>...and ${s.snappedBeams.length-10} more failures</span><span></span></div>`;
+    timelineHTML+='</div>';
+  }
+
+  document.getElementById('report-content').innerHTML=`
+    <div class="rep-sec">
+      <h3>&#128200; Simulation Summary</h3>
+      <div class="rep-stat"><span>Duration</span><span>${sec}s (${s.duration} frames)</span></div>
+      <div class="rep-stat"><span>Environment</span><span>${envLabel[s.environment]||s.environment}</span></div>
+      <div class="rep-stat"><span>Beams at start</span><span>${s.startBeams}</span></div>
+      <div class="rep-stat"><span>Beams survived</span><span>${survived} / ${s.startBeams} (${intPct}% integrity)</span></div>
+      <div class="rep-stat"><span>Beams failed</span><span>${broken}</span></div>
+      <div class="rep-stat"><span>First failure at</span><span>${firstFail}</span></div>
+      <div class="rep-stat"><span>Peak structural stress</span><span>${peakPct}%</span></div>
+      <div class="rep-stat"><span>Vehicles crossed safely</span><span style="color:#88ff88">${s.vehiclesCrossed} ✓</span></div>
+      <div class="rep-stat"><span>Vehicles lost (sea / fallen)</span><span style="color:#ff8888">${s.vehiclesFallen} ✗</span></div>
+      ${s.tsunamiSubmerged?`<div class="rep-stat"><span>Tsunami level</span><span>&#9888; ${tsunamiLabels[s.tsunamiLevel]||''} — Bridge submerged</span></div>`:''}
+      ${s.earthquakeDamage?`<div class="rep-stat"><span>Earthquake level</span><span>&#9888; ${quakeLabels[s.earthquakeLevel]||''} — Seismic failures detected</span></div>`:''}
+    </div>
+
+    <div class="rep-sec">
+      <h3>&#9888; Root Cause Analysis</h3>
+      <ul class="rep-list">${causeLines.join('')}</ul>
+      ${broken>0?`<br>
+      <div class="rep-stat"><span>Steel beams broken</span><span>${mc.steel}</span></div>
+      <div class="rep-stat"><span>Wood planks broken</span><span>${mc.wood}</span></div>
+      <div class="rep-stat"><span>Cables broken</span><span>${mc.cable}</span></div>
+      <div class="rep-stat"><span>Road deck broken</span><span>${mc.road}</span></div>`:''}
+    </div>
+
+    ${timelineHTML}
+
+    <div class="rep-sec">
+      <h3>&#128161; Engineering Recommendations</h3>
+      <ul class="rep-list">${recs.map(r=>`<li>${r}</li>`).join('')}</ul>
+    </div>
+
+    <div class="verdict ${passed?'v-pass':'v-fail'}">
+      ${passed
+        ? '&#10003; BRIDGE PASSED — Structure held under all simulated conditions!'
+        : `&#10007; BRIDGE FAILED — ${broken} member${broken!==1?'s':''} failed, ${s.vehiclesFallen} vehicle${s.vehiclesFallen!==1?'s':''} lost`
+      }
+    </div>
+  `;
+  document.getElementById('report-modal').classList.add('show');
+}
+
+function closeReport(){
+  document.getElementById('report-modal').classList.remove('show');
+}
+document.getElementById('report-modal').addEventListener('click',e=>{if(e.target===e.currentTarget) closeReport();});
+
+/* ══ INPUT ══ */
+let mouseDown=false, dragStart={x:0,y:0}, wasDrag=false;
+
+function getPos(e){
+  const r=cvs.getBoundingClientRect();
+  return {x:(e.clientX-r.left)*(W/r.width), y:(e.clientY-r.top)*(H/r.height)};
+}
+function findVehicleAt(x,y){
+  const all=vehicleBody?[vehicleBody,...vehicles]:[...vehicles];
+  for(const vb of all) if(Math.hypot(vb.position.x-x,vb.position.y-y)<26) return vb;
+  return null;
+}
+
+cvs.addEventListener('contextmenu',e=>{
+  e.preventDefault(); if(simRunning) return;
+  const {x,y}=getPos(e), j=findNear(x,y,16);
+  if(j&&!j.fixed){
+    beams=beams.filter(b=>b.ja!==j&&b.jb!==j);
+    joints=joints.filter(jj=>jj!==j);
+    if(firstJoint===j) firstJoint=null;
+    drawAll();
+  }
+});
+
+cvs.addEventListener('mousedown',e=>{
+  if(e.button!==0) return;
+  const pos=getPos(e); mouseDown=true; wasDrag=false; dragStart=pos;
+  if(simRunning){
+    const vb=findVehicleAt(pos.x,pos.y);
+    if(vb){
+      draggingVehicle=vb;
+      vehicleDragOff={x:pos.x-vb.position.x,y:pos.y-vb.position.y};
+      Body.setVelocity(vb,{x:0,y:0}); Body.setAngularVelocity(vb,0);
+    }
+  } else {
+    draggingJoint=findNear(pos.x,pos.y,14);
+  }
+});
+
+cvs.addEventListener('mousemove',e=>{
+  mousePos=getPos(e);
+  if(simRunning){
+    if(draggingVehicle&&mouseDown){
+      Body.setPosition(draggingVehicle,{x:mousePos.x-vehicleDragOff.x, y:mousePos.y-vehicleDragOff.y});
+      Body.setVelocity(draggingVehicle,{x:0,y:0});
+      Body.setAngularVelocity(draggingVehicle,0);
+      Body.setAngle(draggingVehicle,0);
+    }
+    return;
+  }
+  if(mouseDown&&draggingJoint){
+    const d=Math.hypot(mousePos.x-dragStart.x,mousePos.y-dragStart.y);
+    if(d>5){wasDrag=true; draggingJoint.x=mousePos.x; draggingJoint.y=mousePos.y;}
+  }
+  drawAll();
+});
+
+cvs.addEventListener('mouseup',e=>{
+  if(simRunning){
+    if(draggingVehicle&&e.button===0) Body.setVelocity(draggingVehicle,{x:3,y:0});
+    draggingVehicle=null; mouseDown=false; return;
+  }
+  if(e.button!==0){mouseDown=false;draggingJoint=null;return;}
+  const {x,y}=getPos(e), didDrag=wasDrag;
+  mouseDown=false; wasDrag=false;
+  if(didDrag&&draggingJoint){draggingJoint=null;drawAll();return;}
+  draggingJoint=null;
+  const hit=findNear(x,y,15);
+  if(hit){
+    if(!firstJoint) firstJoint=hit;
+    else if(firstJoint!==hit){
+      const dup=beams.find(b=>(b.ja===firstJoint&&b.jb===hit)||(b.ja===hit&&b.jb===firstJoint));
+      if(!dup) addBeam(firstJoint,hit,selectedMat);
+      firstJoint=null;
+    } else firstJoint=null;
+  } else {
+    if(firstJoint){const nj=addJoint(x,y,false);addBeam(firstJoint,nj,selectedMat);firstJoint=nj;}
+    else firstJoint=addJoint(x,y,false);
+  }
+  drawAll();
+});
+
+cvs.addEventListener('mouseleave',()=>{mouseDown=false;draggingJoint=null;draggingVehicle=null;wasDrag=false;});
+
+cvs.addEventListener('touchstart',e=>{e.preventDefault();const t=e.touches[0];cvs.dispatchEvent(new MouseEvent('mousedown',{clientX:t.clientX,clientY:t.clientY,button:0}));},{passive:false});
+cvs.addEventListener('touchmove', e=>{e.preventDefault();const t=e.touches[0];cvs.dispatchEvent(new MouseEvent('mousemove',{clientX:t.clientX,clientY:t.clientY}));},{passive:false});
+cvs.addEventListener('touchend',  e=>{e.preventDefault();const t=e.changedTouches[0];cvs.dispatchEvent(new MouseEvent('mouseup',{clientX:t.clientX,clientY:t.clientY,button:0}));},{passive:false});
+
+/* ══ INIT ══ */
+window.addEventListener('load',()=>{
+  resize(); waterBaseY=H*0.54; buildDefault(); drawAll();
+});
+</script>
+</body>
+</html>
